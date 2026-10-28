@@ -1,0 +1,18 @@
+{
+  "repo" : "pitch-io/uix",
+  "tag" : "d414b12",
+  "commit" : "d414b12c715da68bcb18801919e46a5a64f826a9",
+  "files" : {
+    "README.md" : "7df24a44e00ecee7c96385585f13b69ad721f54a0a3bca3103a6c5aad54dd0ee"
+  },
+  "citations" : {
+    "react-version" : {
+      "path" : "README.md",
+      "lines" : [ 17, 17 ],
+      "sha256" : "b059e5d10a65a6073755328c7d1f27f018239c5c3cc72a3b8ebd34658fa0ef58",
+      "since" : "b06ed57",
+      "differs" : [ ]
+    }
+  },
+  "observed" : { }
+}

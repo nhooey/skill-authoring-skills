@@ -33,11 +33,21 @@
 ;; lock also records each citation's history: the earliest tag on the pinned
 ;; tag's history (releases, betas and release candidates) since which its
 ;; span reads the same, and later tags off that history where it differs;
-;; and, from the eval's releases.edn (scripts/eval-releases.clj), the same
-;; for each observed example. The footnotes print both. With --source, lock
+;; and, from the eval's releases.edn beside its examples.edn, the same for
+;; each observed example. The footnotes print both. With --source, lock
 ;; keeps the history the previous lock recorded.
+;;
+;; An upstream whose releases are not semver tags, such as one that names
+;; each GitHub release by its short commit hash, sets :releases :github in
+;; its :source. Its history and `drift --to latest` then follow the order of
+;; the repo's GitHub releases (drafts left out), read from the GitHub API
+;; with $GH_TOKEN or $GITHUB_TOKEN when set.
+;;
+;; An observed footnote reads "Observed on <:observed-on> <tag>", with
+;; :observed-on from citations.edn ("XTDB", say), or the repo when absent.
 
 (require '[babashka.fs :as fs]
+         '[babashka.http-client :as http]
          '[babashka.process :as p]
          '[cheshire.core :as json]
          '[clojure.edn :as edn]
@@ -52,8 +62,8 @@
 (def heading-re #"^(#{1,6})\s+(.*?)\s*#*\s*$")
 (def tag-re #"^v?(\d+)\.(\d+)\.(\d+)(?:-([A-Za-z]+)(\d*)(?:\.(\d+))?)?$")
 ;; The tags a citation's history is checked at: releases, betas and release
-;; candidates, written with a leading v.
-(def release-tag-re #"^v(\d+)\.\d+\.\d+(?:-(?:beta|rc)\d+(?:\.\d+)?)?$")
+;; candidates, with or without a leading v.
+(def release-tag-re #"^v?(\d+)\.\d+\.\d+(?:-(?:beta|rc)\d+(?:\.\d+)?)?$")
 
 (defn fail! [msg] (throw (ex-info msg {::citation true})))
 
@@ -69,7 +79,28 @@
 
 ;; --- upstream access -------------------------------------------------------
 
-(defn git-upstream [repo]
+(defn github-releases
+  "The tags of `repo`'s GitHub releases, drafts left out, oldest first."
+  [repo]
+  (let [token (or (System/getenv "GH_TOKEN") (System/getenv "GITHUB_TOKEN"))
+        page (fn [n]
+               (let [r (http/get (str "https://api.github.com/repos/" repo "/releases")
+                                 {:query-params {"per_page" "100" "page" (str n)}
+                                  :headers (cond-> {"Accept" "application/vnd.github+json"}
+                                             token (assoc "Authorization" (str "Bearer " token)))
+                                  :throw false})]
+                 (when-not (= 200 (:status r))
+                   (fail! (str "GitHub releases of " repo ": HTTP " (:status r))))
+                 (json/parse-string (:body r))))]
+    (->> (iterate inc 1)
+         (map page)
+         (take-while seq)
+         (apply concat)
+         (remove #(get % "draft"))
+         (sort-by #(get % "published_at"))
+         (mapv #(get % "tag_name")))))
+
+(defn git-upstream [repo & {:keys [releases]}]
   (let [cache (or (System/getenv "XDG_CACHE_HOME") (str (fs/home) "/.cache"))
         dir (str cache "/skill-citations/github.com/" repo ".git")
         url (str "https://github.com/" repo ".git")
@@ -96,11 +127,17 @@
              (let [r (git "show" (str ref ":" path))]
                (when (zero? (:exit r)) (:out r))))
      :tags (fn [] (fetch!) (str/split-lines (:out (git "tag" "--list"))))
+     ;; The GitHub releases' tags, oldest first, when the source orders by them.
+     :releases (when (= :github releases) (memoize #(github-releases repo)))
      :history (fn [pinned]
-                (let [major (second (re-matches #"^v?(\d+)\..*" pinned))]
-                  (vec (for [t (str/split-lines (:out (git "for-each-ref" "--sort=creatordate"
-                                                           "--format=%(refname:short)" "refs/tags")))
-                             :when (when-let [[_ ma] (re-matches release-tag-re t)] (= ma major))]
+                (let [major (second (re-matches #"^v?(\d+)\..*" pinned))
+                      tags (if (= :github releases)
+                             (do (fetch!) (github-releases repo))
+                             (for [t (str/split-lines (:out (git "for-each-ref" "--sort=creatordate"
+                                                                 "--format=%(refname:short)" "refs/tags")))
+                                   :when (when-let [[_ ma] (re-matches release-tag-re t)] (= ma major))]
+                               t))]
+                  (vec (for [t tags]
                          {:tag t
                           :on-line? (zero? (:exit (git "merge-base" "--is-ancestor" t pinned)))}))))
      :renamed-to (fn [old new path]
@@ -204,16 +241,16 @@
         plain (if (re-find #"\.mdx?$" path) "?plain=1" "")]
     (str "https://github.com/" repo "/blob/" tag "/" path plain "#L" a "-L" b)))
 
-(defn own-source [cfg] (select-keys (:source cfg) [:repo :tag]))
+(defn own-source [cfg] (select-keys (:source cfg) [:repo :tag :releases]))
 
 (defn cite-source
-  "The {:repo :tag} a citation reads from: its own :source, or the skill's."
+  "The {:repo :tag :releases} a citation reads from: its own :source, or the skill's."
   [cfg c]
-  (if (:source c) (select-keys (:source c) [:repo :tag]) (own-source cfg)))
-
-(defn foreign? [cfg c] (not= (cite-source cfg c) (own-source cfg)))
+  (if (:source c) (select-keys (:source c) [:repo :tag :releases]) (own-source cfg)))
 
 (defn source-key [{:keys [repo tag]}] (str repo "@" tag))
+
+(defn foreign? [cfg c] (not= (source-key (cite-source cfg c)) (source-key (own-source cfg))))
 
 (defn lock-source
   "The lock's record of the source citation `id` reads from, with \"commit\" and \"files\"."
@@ -231,6 +268,12 @@
              :else (str ", " since-words since))
        (when (seq others) (str "; " other-words (str/join ", " others)))))
 
+(defn observed-on
+  "What an observed footnote says the example ran on: citations.edn's
+  :observed-on, such as \"XTDB\", or the upstream repo."
+  [cfg]
+  (or (:observed-on cfg) (get-in cfg [:source :repo])))
+
 (defn expected-footnotes [cfg lock]
   (let [{:keys [tag]} (:source cfg)]
     (merge
@@ -246,7 +289,7 @@
                          (history-note tag (get entry "since") (get entry "differs") "unchanged since " "differs in "))]))
      (into {} (for [{:keys [id example]} (:observed cfg)
                     :let [{:strs [since fails]} (get-in lock ["observed" id])]]
-                [id (str "[^" id "]: Observed on XTDB " (:xtdb (:source cfg) tag) ": example `" example
+                [id (str "[^" id "]: Observed on " (observed-on cfg) " " tag ": example `" example
                          "` in [examples.edn](" (:observations cfg) "), re-run by the eval's `" (:observed-by cfg "examples") "` command"
                          (if (get-in lock ["observed" id])
                            (str (history-note tag since fails "holds on every tag the eval ran since " "fails on ")
@@ -346,13 +389,13 @@
   [cfg {:keys [source]} lock]
   (memoize
    (fn [src]
-     (let [foreign (not= src (own-source cfg))]
+     (let [foreign (not= (source-key src) (source-key (own-source cfg)))]
        (if source
          (let [commit (if foreign (get-in lock ["sources" (source-key src) "commit"]) (get lock "commit"))]
            (when-not lock (fail! "--source needs an existing lock to name its commit"))
            (when-not commit (fail! (str "the lock has no commit for " (source-key src) "; run `lock`")))
            (tree-upstream (if foreign (str (fs/path source "_sources" (source-key src))) source) commit))
-         (git-upstream (:repo src)))))))
+         (git-upstream (:repo src) :releases (:releases src)))))))
 
 (defn observation-ids [skill cfg]
   (when-let [f (:observations cfg)]
@@ -448,10 +491,15 @@
           ;; A release sorts after its own pre-releases.
           (if pre [0 pre (parse-long (if (str/blank? pre-n) "0" pre-n)) (parse-long (or pre-sub "0"))] [1 "" 0 0]))))
 
-(defn latest-tag [up current]
-  (let [cur (tag-key current)
-        newer (for [t ((:tags up)) :let [k (tag-key t)] :when (and k (pos? (compare k cur)))] [k t])]
-    (if (seq newer) (second (last (sort-by first newer))) current)))
+(defn latest-tag
+  "The newest GitHub release when the source orders by them, else the
+  highest semver tag above `current`."
+  [up current]
+  (if-let [releases (:releases up)]
+    (or (last (releases)) current)
+    (let [cur (tag-key current)
+          newer (for [t ((:tags up)) :let [k (tag-key t)] :when (and k (pos? (compare k cur)))] [k t])]
+      (if (seq newer) (second (last (sort-by first newer))) current))))
 
 (defn unified-diff [before after]
   ;; Minimal line diff: shared prefix and suffix kept as context, the middle as -/+.
@@ -464,7 +512,7 @@
 (defn cmd-drift [skill {:keys [to json]}]
   (let [cfg (load-config skill)
         lock (read-lock skill)
-        up (git-upstream (get-in cfg [:source :repo]))
+        up (git-upstream (get-in cfg [:source :repo]) :releases (get-in cfg [:source :releases]))
         old (get lock "commit")
         to (if (= to "latest") (latest-tag up (get lock "tag")) to)
         new ((:commit up) to)
@@ -549,7 +597,7 @@
       (println (str (str/join "\n" (map #(str "> " %) (str/split-lines text))) "\n"))
       (doseq [id (distinct (map second (re-seq footnote-ref text)))]
         (if-let [ex (some-> (observed id) examples)]
-          (println (str "### Source [^" id "]: observed on a live XTDB node, example `" (:id ex) "`\n\n````clojure\n"
+          (println (str "### Source [^" id "]: observed on " (observed-on cfg) ", example `" (:id ex) "`\n\n````clojure\n"
                         (binding [*print-namespace-maps* false] (pr-str ex)) "\n````\n"))
           (let [{:strs [path lines]} (get-in lock ["citations" id])]
             (println (str "### Source [^" id "]: " path " lines " (str/join "-" lines) "\n"))

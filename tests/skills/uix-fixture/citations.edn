@@ -1,0 +1,10 @@
+;; A fixture for `nix flake check`: one citation of pitch-io/uix, whose
+;; GitHub releases are named by short commit hash (d414b12 is UIx 1.4.9),
+;; so its history and `drift --to latest` follow the GitHub releases.
+{:source {:repo "pitch-io/uix"
+          :tag "d414b12"
+          :releases :github
+          :watch ["README.md"]}
+
+ :cite
+ [{:id "react-version" :path "README.md" :line "- API compatibility: React"}]}
