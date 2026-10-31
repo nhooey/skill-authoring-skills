@@ -44,7 +44,10 @@
 ;; with $GH_TOKEN or $GITHUB_TOKEN when set.
 ;;
 ;; An observed footnote reads "Observed on <:observed-on> <tag>", with
-;; :observed-on from citations.edn ("XTDB", say), or the repo when absent.
+;; :observed-on from citations.edn ("XTDB", say), or the repo when absent,
+;; then the tags it held on. It names no example or eval file: the skill's
+;; reader can't open them where it is installed, and citations.edn maps the
+;; footnote's id to its example.
 
 (require '[babashka.fs :as fs]
          '[babashka.http-client :as http]
@@ -287,14 +290,11 @@
                 [id (str "[^" id "]: [" (fs/file-name path) " " where ", " at "]("
                          (permalink (:repo src) (:tag src) {:path path :lines (get entry "lines")}) ")"
                          (history-note tag (get entry "since") (get entry "differs") "unchanged since " "differs in "))]))
-     (into {} (for [{:keys [id example]} (:observed cfg)
+     (into {} (for [{:keys [id]} (:observed cfg)
                     :let [{:strs [since fails]} (get-in lock ["observed" id])]]
-                [id (str "[^" id "]: Observed on " (observed-on cfg) " " tag ": example `" example
-                         "` in [examples.edn](" (:observations cfg) "), re-run by the eval's `" (:observed-by cfg "examples") "` command"
-                         (if (get-in lock ["observed" id])
-                           (str (history-note tag since fails "holds on every tag the eval ran since " "fails on ")
-                                "; [releases.edn](" (str (fs/parent (:observations cfg)) "/releases.edn") ") lists the tags")
-                           "")
+                [id (str "[^" id "]: Observed on " (observed-on cfg) " " tag
+                         (when (get-in lock ["observed" id])
+                           (history-note tag since fails "holds on every tag the eval ran since " "fails on "))
                          ".")])))))
 
 ;; --- commands --------------------------------------------------------------
