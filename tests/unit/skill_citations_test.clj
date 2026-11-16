@@ -1,6 +1,5 @@
-;; Unit and offline end-to-end tests of scripts/skill-citations.clj.
-;;
-;;   bb tests/unit/skill_citations_test.clj
+;; Unit and offline end-to-end tests of scripts/skill-citations.clj, run by
+;; the dev shell's `skill-citations-tests` and by `nix flake check`.
 ;;
 ;; The script is loaded into this namespace for its functions. The end-to-end
 ;; tests build a skill and an upstream tree in a temporary directory and run
@@ -403,5 +402,15 @@
     (let [r (cli "drift" "dir")]
       (is (= [2 "drift needs --to\n"] [(:exit r) (:err r)])))))
 
-(let [{:keys [fail error]} (t/run-tests 'skill-citations-test)]
-  (System/exit (if (zero? (+ fail error)) 0 1)))
+(def usage
+  (str "usage: skill-citations-tests [--help]\n\n"
+       "Run the unit and offline end-to-end tests of skill-citations.\n\n"
+       "options:\n"
+       "  -h, --help  print this help\n\n"
+       "exit status: 0 all passed, 1 a test failed, 2 bad usage"))
+
+(let [args *command-line-args*]
+  (cond (some #{"-h" "--help"} args) (do (println usage) (System/exit 0))
+        (seq args) (do (binding [*out* *err*] (println usage)) (System/exit 2))
+        :else (let [{:keys [fail error]} (t/run-tests 'skill-citations-test)]
+                (System/exit (if (zero? (+ fail error)) 0 1)))))

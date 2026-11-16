@@ -82,6 +82,15 @@
         { pkgs, system, ... }:
         let
           citations = citationsFor pkgs;
+
+          citationsTests = pkgs.writeShellApplication {
+            name = "skill-citations-tests";
+            runtimeInputs = [
+              pkgs.babashka
+              pkgs.git
+            ];
+            text = builtins.readFile ./scripts/skill-citations-tests.sh;
+          };
         in
         {
           packages = base.packages.${system} // {
@@ -128,6 +137,12 @@
               name = "skill-citations";
               help = "lock, verify or drift-check a skill's upstream citations";
               package = citations.tool;
+            }
+            {
+              category = "tests";
+              name = "skill-citations-tests";
+              help = "run skill-citations' unit and offline end-to-end tests";
+              package = citationsTests;
             }
           ];
 
