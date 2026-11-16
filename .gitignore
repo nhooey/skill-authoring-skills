@@ -5,7 +5,8 @@
 /skills/*/result-*
 
 # Project-scope skills the dev-shell reconcile hook installs; the skills'
-# preferences files beside them are the project's own.
+# preferences files beside them are the project's own. .claude/skills is a
+# symlink to .agents/skills, which a pattern with a trailing slash misses.
 /.agents/skills/*
 !/.agents/skills/*.preferences.md
-/.claude/skills/
+/.claude/skills
