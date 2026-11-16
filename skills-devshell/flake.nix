@@ -1,8 +1,6 @@
 {
   description = "skill-authoring-skills dev-shell skill set — an isolated sub-flake invoked at RUNTIME by the root devShell, never a root input. The skill sources (skillspkgs' authoring-with-git combination) live only in THIS flake's lock, so the root skill-authoring-skills stays a leaf with zero skill inputs and transitive consumers never drag the skill mesh in.";
 
-  # Every skill-repository input tracks its `overnight-skills` branch for
-  # the overnight cleanup wave; they go back to the default branches after.
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     systems.url = "github:nix-systems/default";
@@ -18,34 +16,34 @@
     # Skill sources. Each follows only nixpkgs, keeping its own compatible
     # agent-skill-flake; the combiner still runs from the one pinned above.
     coding-agent-skills = {
-      url = "github:nhooey/coding-agent-skills/overnight-skills";
+      url = "github:nhooey/coding-agent-skills";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     data-skills = {
-      url = "github:nhooey/data-skills/overnight-skills";
+      url = "github:nhooey/data-skills";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     document-skills = {
-      url = "github:nhooey/document-skills/overnight-skills";
+      url = "github:nhooey/document-skills";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Also the git and nix sources inside the skillspkgs combination below,
     # which follows these two.
     git-skills = {
-      url = "github:nhooey/git-skills/overnight-skills";
+      url = "github:nhooey/git-skills";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     nix-skills = {
-      url = "github:nhooey/nix-skills/overnight-skills";
+      url = "github:nhooey/nix-skills";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     shell-skills = {
-      url = "github:nhooey/shell-skills/overnight-skills";
+      url = "github:nhooey/shell-skills";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -64,7 +62,7 @@
     };
 
     writing-skills = {
-      url = "github:nhooey/writing-skills/overnight-skills";
+      url = "github:nhooey/writing-skills";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
