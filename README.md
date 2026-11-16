@@ -56,7 +56,7 @@ A check runs `verify` in the sandbox. It fetches each cited file by raw URL at t
 
 ## Development
 
-`nix develop` enters the dev shell, which reconciles the authoring skills pinned in the `skills-devshell/` sub-flake into `.agents/skills/`, with `.claude/skills` a symlink to it, and puts `skill-citations` on the path. `nix flake check` runs the citation checks of `skills/` and of the fixture in `tests/skills/uix-fixture`, which cites pitch-io/uix at a hash-named release. `nix fmt` formats with treefmt.
+`nix develop` enters the dev shell, which reconciles the authoring skills pinned in the `skills-devshell/` sub-flake into `.agents/skills/`, with `.claude/skills` a symlink to it, and puts `skill-citations` on the path. `nix flake check` runs the citation checks of `skills/` and of the fixture in `tests/skills/uix-fixture`, which cites pitch-io/uix at a hash-named release, and the tests in `tests/unit/` (`bb tests/unit/skill_citations_test.clj` runs them alone). `nix fmt` formats with treefmt.
 
 ## License
 

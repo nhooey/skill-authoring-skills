@@ -5,5 +5,6 @@ Tools and agent skills for writing agent skills, as a Nix flake. It holds `skill
 ## Build and test
 
 - `nix develop` enters the dev shell. It installs the skills pinned in the `skills-devshell/` sub-flake into `.agents/skills/` and puts `skill-citations` on the path.
-- `nix flake check` builds every skill package and runs the `citations-<skill>` check of each skill under `skills/` and of the fixture in `tests/skills/uix-fixture`. CI runs the same.
+- `nix flake check` builds every skill package and runs the `citations-<skill>` check of each skill under `skills/` and of the fixture in `tests/skills/uix-fixture`, and `skill-citations-tests`, the unit and offline end-to-end tests in `tests/unit/`. CI runs the same.
+- `bb tests/unit/skill_citations_test.clj` runs those tests alone, in a second or two.
 - `nix fmt` formats with treefmt.

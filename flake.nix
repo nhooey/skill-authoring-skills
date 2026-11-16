@@ -103,6 +103,23 @@
             // citations.checks {
               root = ./.;
               skillsDir = "tests/skills";
+            }
+            // {
+              # Unit and offline end-to-end tests of skill-citations.
+              skill-citations-tests =
+                let
+                  src = pkgs.lib.fileset.toSource {
+                    root = ./.;
+                    fileset = pkgs.lib.fileset.unions [
+                      ./scripts
+                      ./tests/unit
+                    ];
+                  };
+                in
+                pkgs.runCommand "skill-citations-tests" { nativeBuildInputs = [ pkgs.babashka ]; } ''
+                  bb ${src}/tests/unit/skill_citations_test.clj
+                  touch $out
+                '';
             };
 
           devshells.default.commands = [
