@@ -31,7 +31,7 @@ skill-citations pairs  skills/<skill>                # each citing passage besid
 
 `lock` also dates each footnote: the earliest release on the pinned tag's line since which the span reads the same ("unchanged since v2.0.0-beta7"), and later releases off that line where it differs. By default the releases are the repo's semver tags, betas and release candidates included, with or without a leading `v`. An upstream that names its GitHub releases by short commit hash, as pitch-io/uix does, sets `:releases :github`: its history and `drift --to latest` then follow the order of its GitHub releases, read from the GitHub API with `$GH_TOKEN` or `$GITHUB_TOKEN` when set.
 
-Upstream files come from a blobless bare clone cached under `$XDG_CACHE_HOME/skill-citations`.
+Upstream files come from a blobless bare clone cached under `$XDG_CACHE_HOME/skill-citations`. `lock` and `verify` take `--source TREE` to read them from a tree checked out at the locked commit instead, a second source's files from `TREE/_sources/repo@tag/`; that is how the Nix check runs without network.
 
 ## Using it from another flake
 
@@ -56,7 +56,7 @@ A check runs `verify` in the sandbox. It fetches each cited file by raw URL at t
 
 ## Development
 
-`nix develop` (or direnv) enters the dev shell, which reconciles the authoring skills pinned in the `skills-devshell/` sub-flake into `.claude/skills/` and puts `skill-citations` on the path. `nix flake check` runs the citation checks of `skills/` and of the fixture in `tests/skills/uix-fixture`, which cites pitch-io/uix at a hash-named release. `nix fmt` formats with treefmt.
+`nix develop` enters the dev shell, which reconciles the authoring skills pinned in the `skills-devshell/` sub-flake into `.agents/skills/`, with `.claude/skills` a symlink to it, and puts `skill-citations` on the path. `nix flake check` runs the citation checks of `skills/` and of the fixture in `tests/skills/uix-fixture`, which cites pitch-io/uix at a hash-named release. `nix fmt` formats with treefmt.
 
 ## License
 
