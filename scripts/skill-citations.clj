@@ -639,4 +639,6 @@
           (do (binding [*out* *err*] (println (str "error: " (ex-message e)))) (System/exit 2))
           (throw e))))))
 
-(-main *command-line-args*)
+;; Run only as a script, so tests can load-file it for its functions.
+(when (= *file* (System/getProperty "babashka.file"))
+  (-main *command-line-args*))
