@@ -82,6 +82,15 @@
         { pkgs, system, ... }:
         let
           citations = citationsFor pkgs;
+
+          citationsTests = pkgs.writeShellApplication {
+            name = "skill-citations-tests";
+            runtimeInputs = [
+              pkgs.babashka
+              pkgs.git
+            ];
+            text = builtins.readFile ./scripts/skill-citations-tests.sh;
+          };
         in
         {
           packages = base.packages.${system} // {
@@ -103,6 +112,23 @@
             // citations.checks {
               root = ./.;
               skillsDir = "tests/skills";
+            }
+            // {
+              # Unit and offline end-to-end tests of skill-citations.
+              skill-citations-tests =
+                let
+                  src = pkgs.lib.fileset.toSource {
+                    root = ./.;
+                    fileset = pkgs.lib.fileset.unions [
+                      ./scripts
+                      ./tests/unit
+                    ];
+                  };
+                in
+                pkgs.runCommand "skill-citations-tests" { nativeBuildInputs = [ pkgs.babashka ]; } ''
+                  bb ${src}/tests/unit/skill_citations_test.clj
+                  touch $out
+                '';
             };
 
           devshells.default.commands = [
@@ -111,6 +137,12 @@
               name = "skill-citations";
               help = "lock, verify or drift-check a skill's upstream citations";
               package = citations.tool;
+            }
+            {
+              category = "tests";
+              name = "skill-citations-tests";
+              help = "run skill-citations' unit and offline end-to-end tests";
+              package = citationsTests;
             }
           ];
 

@@ -13,9 +13,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # The data, document and writing repos' "all" packs: every skill each
-    # repo outputs. Each follows only nixpkgs, keeping its own compatible
+    # Skill sources. Each follows only nixpkgs, keeping its own compatible
     # agent-skill-flake; the combiner still runs from the one pinned above.
+    coding-agent-skills = {
+      url = "github:nhooey/coding-agent-skills";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     data-skills = {
       url = "github:nhooey/data-skills";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -23,6 +27,23 @@
 
     document-skills = {
       url = "github:nhooey/document-skills";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # Also the git and nix sources inside the skillspkgs combination below,
+    # which follows these two.
+    git-skills = {
+      url = "github:nhooey/git-skills";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    nix-skills = {
+      url = "github:nhooey/nix-skills";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    shell-skills = {
+      url = "github:nhooey/shell-skills";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -35,6 +56,8 @@
       inputs = {
         nixpkgs.follows = "nixpkgs";
         agent-skill-flake.follows = "agent-skill-flake";
+        git-skills.follows = "git-skills";
+        nix-skills.follows = "nix-skills";
       };
     };
 
@@ -48,8 +71,10 @@
     {
       nixpkgs,
       agent-skill-flake,
+      coding-agent-skills,
       data-skills,
       document-skills,
+      shell-skills,
       skillspkgs-combinations,
       writing-skills,
       ...
@@ -60,8 +85,19 @@
       name = "skill-authoring-skills-devshell";
       envName = "agent-skills-skill-authoring-skills-devshell";
       sources = [
+        # The base skills every headless run in this checkout needs: running
+        # a prompt in another checkout, the plan graph, a tidy scratchpad.
+        {
+          source = coding-agent-skills;
+          skills = [
+            "coding-agent-headless-in-checkout"
+            "coding-agent-plans-as-graph"
+            "coding-agent-scratchpad-scripts"
+          ];
+        }
         { source = data-skills; }
         { source = document-skills; }
+        { source = shell-skills; }
         { source = skillspkgs-combinations.combinations.authoring-with-git; }
         { source = writing-skills; }
       ];
