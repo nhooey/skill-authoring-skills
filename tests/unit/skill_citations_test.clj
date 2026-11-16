@@ -147,7 +147,28 @@
   (is (= {:skill "dir" :source "tree" :to "latest" :json true}
          (parse-args ["dir" "--source" "tree" "--to" "latest" "--json"])))
   (is (= {:skill "dir"} (parse-args ["dir"])))
-  (is (= {} (parse-args []))))
+  (is (= {} (parse-args [])))
+  (is (= {:skill "dir" :help true} (parse-args ["dir" "-h"])))
+  (testing "an unknown option, a missing value or a second directory is an error"
+    (is (= {:error "unknown option --bogus"} (parse-args ["dir" "--bogus"])))
+    (is (= {:error "--to needs a value"} (parse-args ["dir" "--to"])))
+    (is (= {:error "--source needs a value"} (parse-args ["--source" "--json" "dir"])))
+    (is (= {:error "one SKILL-DIR only, got a and b"} (parse-args ["a" "b"])))))
+
+(deftest cli-action-cases
+  (testing "--help at the top lists every command and option"
+    (doseq [args [["--help"] ["-h"] ["help"]]]
+      (let [{:keys [help]} (cli-action args)]
+        (is (every? #(str/includes? help %)
+                    ["lock" "verify" "drift" "bump" "pairs" "--source" "--to" "--json" "--help"])))))
+  (testing "COMMAND --help gives that command's usage, before any other check"
+    (is (str/starts-with? (:help (cli-action ["drift" "--help"])) "usage: skill-citations drift SKILL-DIR --to"))
+    (is (contains? (cli-action ["bump" "-h"]) :help)))
+  (testing "a runnable command line"
+    (is (= {:run "drift" :opts {:skill "d" :to "latest"}} (cli-action ["drift" "d" "--to" "latest"]))))
+  (testing "usage errors"
+    (doseq [args [[] ["nonsense" "d"] ["verify"] ["drift" "d"] ["lock" "d" "--bogus"]]]
+      (is (contains? (cli-action args) :usage-error) (pr-str args)))))
 
 ;; --- history -----------------------------------------------------------------
 
@@ -370,6 +391,11 @@
       (let [r (cli "verify" skill "--source" tree)]
         (is (= 2 (:exit r)))
         (is (str/includes? (:err r) "citations.lock.json is missing; run `lock` first")))))
+  (testing "--help prints to stdout, exit 0"
+    (let [r (cli "--help")]
+      (is (= [0 ""] [(:exit r) (:err r)]))
+      (is (str/starts-with? (:out r) "usage: skill-citations")))
+    (is (= 0 (:exit (cli "verify" "--help")))))
   (testing "usage errors, exit 2"
     (is (= 2 (:exit (cli))))
     (is (= 2 (:exit (cli "nonsense" "dir"))))

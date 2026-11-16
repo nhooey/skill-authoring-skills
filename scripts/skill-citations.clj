@@ -612,27 +612,96 @@
     (spit f new)
     (cmd-lock skill (dissoc opts :source))))
 
-(defn parse-args [args]
+(def command-help
+  "Each command's argument line and one-line summary, in --help order."
+  [["lock" "SKILL-DIR [--source TREE]"
+    "resolve every anchor at the pinned tag, write the lock, regenerate the footnotes"]
+   ["verify" "SKILL-DIR [--source TREE]"
+    "fail unless the lock, footnotes and anchors agree at the pinned tag"]
+   ["drift" "SKILL-DIR --to TAG|latest [--json]"
+    "report each citation at a newer tag as unchanged, changed, moved or missing, with diffs"]
+   ["bump" "SKILL-DIR --to TAG"
+    "move the pin to TAG and re-lock, after updating the passages drift named"]
+   ["pairs" "SKILL-DIR"
+    "print each citing passage beside what it cites, for a reviewer to judge"]])
+
+(def option-help
+  [["--source TREE" "read upstream files from TREE, checked out at the locked commit (lock, verify)"]
+   ["--to TAG|latest" "the tag to compare with or move to (drift, bump; required there)"]
+   ["--json" "print drift's report as JSON (drift)"]
+   ["-h, --help" "print this help, or one command's with COMMAND --help"]])
+
+(def exit-help
+  "exit status: 0 done, 1 problems found (verify) or citations changed (drift),\n             2 bad usage or a configuration error")
+
+(defn usage-line []
+  (str "usage: skill-citations " (str/join "|" (map first command-help)) " SKILL-DIR [options]\n"
+       "       skill-citations [COMMAND] --help"))
+
+(defn- columns [rows]
+  (let [w (apply max (map (comp count first) rows))]
+    (str/join "\n" (for [[a b] rows] (str "  " a (apply str (repeat (- (+ w 2) (count a)) " ")) b)))))
+
+(defn help-text
+  "The tool's --help, or with `cmd` that command's."
+  ([]
+   (str (usage-line) "\n\n"
+        "Pin a skill's claims to spans of an upstream Git repo, and report drift.\n\n"
+        "commands:\n" (columns (map (fn [[c _ h]] [c h]) command-help)) "\n\n"
+        "options:\n" (columns option-help) "\n\n"
+        exit-help "\n\n"
+        "example: skill-citations verify skills/skill-authoring-example"))
+  ([cmd]
+   (let [[_ args h] (first (filter #(= cmd (first %)) command-help))]
+     (str "usage: skill-citations " cmd " " args "\n\n" h ".\n\n"
+          exit-help "\n\n"
+          "example: skill-citations " cmd " skills/skill-authoring-example"
+          (when (str/includes? args "--to") " --to latest")))))
+
+(defn parse-args
+  "Options and the skill directory from a command's arguments, or
+  {:error message} for an unknown option or one missing its value."
+  [args]
   (loop [[a & more] args, opts {}]
     (cond (nil? a) opts
-          (= a "--source") (recur (rest more) (assoc opts :source (first more)))
-          (= a "--to") (recur (rest more) (assoc opts :to (first more)))
+          (#{"-h" "--help"} a) (recur more (assoc opts :help true))
+          (#{"--source" "--to"} a) (if (or (nil? (first more)) (str/starts-with? (first more) "-"))
+                                     {:error (str a " needs a value")}
+                                     (recur (rest more) (assoc opts (keyword (subs a 2)) (first more))))
           (= a "--json") (recur more (assoc opts :json true))
+          (str/starts-with? a "-") {:error (str "unknown option " a)}
+          (:skill opts) {:error (str "one SKILL-DIR only, got " (:skill opts) " and " a)}
           :else (recur more (assoc opts :skill a)))))
 
-(defn -main [[cmd & args]]
+(defn cli-action
+  "What the command line asks for: {:help text}, {:usage-error message}, or
+  {:run cmd :opts opts}."
+  [[cmd & args]]
+  (let [known (set (map first command-help))]
+    (cond (#{"-h" "--help" "help"} cmd) {:help (help-text)}
+          (nil? cmd) {:usage-error (usage-line)}
+          (not (known cmd)) {:usage-error (str "unknown command " cmd "\n" (usage-line))}
+          :else
+          (let [{:keys [error help skill to] :as opts} (parse-args args)]
+            (cond error {:usage-error (str cmd ": " error "\n" (usage-line))}
+                  help {:help (help-text cmd)}
+                  (nil? skill) {:usage-error (str cmd " needs a SKILL-DIR\n" (usage-line))}
+                  (and (#{"drift" "bump"} cmd) (nil? to)) {:usage-error (str cmd " needs --to")}
+                  :else {:run cmd :opts opts})))))
+
+(defn -main [args]
   (let [cmds {"lock" cmd-lock "verify" cmd-verify "drift" cmd-drift "bump" cmd-bump "pairs" cmd-pairs}
-        {:keys [skill] :as opts} (parse-args args)]
-    (when-not (and (cmds cmd) skill)
-      (binding [*out* *err*] (println "usage: skill-citations lock|verify|drift|bump|pairs SKILL-DIR [--source TREE] [--to TAG|latest] [--json]"))
-      (System/exit 2))
-    (when (and (#{"drift" "bump"} cmd) (not (:to opts)))
-      (binding [*out* *err*] (println (str cmd " needs --to")))
+        {:keys [help usage-error run opts]} (cli-action args)]
+    (when help
+      (println help)
+      (System/exit 0))
+    (when usage-error
+      (binding [*out* *err*] (println usage-error))
       (System/exit 2))
     (try
-      (let [problems ((cmds cmd) (str (fs/absolutize skill)) opts)]
+      (let [problems ((cmds run) (str (fs/absolutize (:skill opts))) opts)]
         (doseq [p problems :when (string? p)] (binding [*out* *err*] (println (str "problem: " p))))
-        (when (and (= cmd "verify") (empty? problems)) (println "citations verified"))
+        (when (and (= run "verify") (empty? problems)) (println "citations verified"))
         (System/exit (if (seq problems) 1 0)))
       (catch clojure.lang.ExceptionInfo e
         (if (::citation (ex-data e))
