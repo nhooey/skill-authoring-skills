@@ -13,8 +13,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Skill sources. Each follows only nixpkgs, keeping its own compatible
-    # agent-skill-flake; the combiner still runs from the one pinned above.
+    # Skill sources. The data, document, shell and writing repos come as
+    # their "all" packs, every skill each repo outputs. Each follows only
+    # nixpkgs, keeping its own compatible agent-skill-flake; the combiner
+    # still runs from the one pinned above.
     coding-agent-skills = {
       url = "github:nhooey/coding-agent-skills";
       inputs.nixpkgs.follows = "nixpkgs";
