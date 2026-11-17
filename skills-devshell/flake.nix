@@ -1,71 +1,26 @@
 {
-  description = "skill-authoring-skills dev-shell skill set — an isolated sub-flake invoked at RUNTIME by the root devShell, never a root input. The skill sources (skillspkgs' authoring-with-git combination) live only in THIS flake's lock, so the root skill-authoring-skills stays a leaf with zero skill inputs and transitive consumers never drag the skill mesh in.";
+  description = "skill-authoring-skills dev-shell skill set — an isolated sub-flake invoked at RUNTIME by the root devShell, never a root input. The skill source (skillspkgs' skill-collections combination) lives only in THIS flake's lock, so the root skill-authoring-skills stays a leaf with zero skill inputs and transitive consumers never drag the skill mesh in.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     systems.url = "github:nix-systems/default";
 
     # `agent-skill-flake` is the builder library, not a skill — it provides
-    # `mkDevshellSkillsFlake`. Followed by every skill source below so the
-    # whole tree shares one evaluation.
+    # `mkDevshellSkillsFlake`.
     agent-skill-flake = {
       url = "github:nhooey/agent-skill-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Skill sources. The data, document, shell and writing repos come as
-    # their "all" packs, every skill each repo outputs. Each follows only
-    # nixpkgs, keeping its own compatible agent-skill-flake; the combiner
-    # still runs from the one pinned above.
-    coding-agent-skills = {
-      url = "github:nhooey/coding-agent-skills";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    data-skills = {
-      url = "github:nhooey/data-skills";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    document-skills = {
-      url = "github:nhooey/document-skills";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    # Also the git and nix sources inside the skillspkgs combination below,
-    # which follows these two.
-    git-skills = {
-      url = "github:nhooey/git-skills";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    nix-skills = {
-      url = "github:nhooey/nix-skills";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    shell-skills = {
-      url = "github:nhooey/shell-skills";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    # skillspkgs' curated `authoring-with-git` combination (nix + humanizer +
-    # anthropic skill-creation + superpowers + the whole git/GitHub pack),
-    # surfaced through its own subdir flake so it stays re-composable as a
-    # source. This is the dev shell's entire skill set in one combination.
+    # skillspkgs' combinations, one per repository family. This repository
+    # is a skill collection, so the dev shell takes the `skill-collections`
+    # combination as its one skill source.
     skillspkgs-combinations = {
       url = "github:nhooey/skillspkgs?dir=sources/combinations";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         agent-skill-flake.follows = "agent-skill-flake";
-        git-skills.follows = "git-skills";
-        nix-skills.follows = "nix-skills";
       };
-    };
-
-    writing-skills = {
-      url = "github:nhooey/writing-skills";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
@@ -73,12 +28,7 @@
     {
       nixpkgs,
       agent-skill-flake,
-      coding-agent-skills,
-      data-skills,
-      document-skills,
-      shell-skills,
       skillspkgs-combinations,
-      writing-skills,
       ...
     }@inputs:
     agent-skill-flake.lib.mkDevshellSkillsFlake {
@@ -87,21 +37,7 @@
       name = "skill-authoring-skills-devshell";
       envName = "agent-skills-skill-authoring-skills-devshell";
       sources = [
-        # The base skills every headless run in this checkout needs: running
-        # a prompt in another checkout, the plan graph, a tidy scratchpad.
-        {
-          source = coding-agent-skills;
-          skills = [
-            "coding-agent-headless-in-checkout"
-            "coding-agent-plans-as-graph"
-            "coding-agent-scratchpad-scripts"
-          ];
-        }
-        { source = data-skills; }
-        { source = document-skills; }
-        { source = shell-skills; }
-        { source = skillspkgs-combinations.combinations.authoring-with-git; }
-        { source = writing-skills; }
+        { source = skillspkgs-combinations.combinations.skill-collections; }
       ];
     };
 }
