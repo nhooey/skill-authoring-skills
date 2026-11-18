@@ -2,6 +2,12 @@
 
 Tools and [Agent Skills](https://www.anthropic.com/engineering/agent-skills) for writing agent skills. It holds `skill-citations`, which pins every claim in a skill to a span of an upstream Git repo and reports when a newer release changes one. The skills, prefixed `skill-authoring-`, go under `skills/`.
 
+## Skills
+
+| Skill                                                                                                    | What it does                                                                                                              |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [`skill-authoring-write-for-a-capable-model`](skills/skill-authoring-write-for-a-capable-model/SKILL.md) | Sets how skills and subagent briefs are written for a capable current model: each rule once, and nothing it can work out. |
+
 ## Citing upstream sources
 
 Every claim in a skill carries a footnote, of one of three kinds, so a new upstream release can be checked against only the parts the skill relies on:
