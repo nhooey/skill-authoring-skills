@@ -632,7 +632,7 @@
    ["-h, --help" "print this help, or one command's with COMMAND --help"]])
 
 (def exit-help
-  "exit status: 0 done, 1 problems found (verify) or citations changed (drift),\n             2 bad usage or a configuration error")
+  "exit status: 0 done, 1 problems found (lock, verify, bump) or citations changed\n             (drift), 2 bad usage or a configuration error")
 
 (defn usage-line []
   (str "usage: skill-citations " (str/join "|" (map first command-help)) " SKILL-DIR [options]\n"

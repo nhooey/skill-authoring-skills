@@ -2,6 +2,12 @@
 
 Tools and [Agent Skills](https://www.anthropic.com/engineering/agent-skills) for writing agent skills. It holds `skill-citations`, which pins every claim in a skill to a span of an upstream Git repo and reports when a newer release changes one. The skills, prefixed `skill-authoring-`, go under `skills/`.
 
+## Skills
+
+| Skill                                                                                                    | What it does                                                                                                              |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [`skill-authoring-write-for-a-capable-model`](skills/skill-authoring-write-for-a-capable-model/SKILL.md) | Sets how skills and subagent briefs are written for a capable current model: each rule once, and nothing it can work out. |
+
 ## Citing upstream sources
 
 Every claim in a skill carries a footnote, of one of three kinds, so a new upstream release can be checked against only the parts the skill relies on:
@@ -56,7 +62,7 @@ A check runs `verify` in the sandbox. It fetches each cited file by raw URL at t
 
 ## Development
 
-`nix develop` enters the dev shell, which reconciles the authoring skills pinned in the `skills-devshell/` sub-flake into `.agents/skills/`, with `.claude/skills` a symlink to it, and puts `skill-citations` and `skill-citations-tests` on the path (`menu` lists them, and each takes `--help`). `nix flake check` runs the citation checks of `skills/` and of the fixture in `tests/skills/uix-fixture`, which cites pitch-io/uix at a hash-named release, and the tests in `tests/unit/` (`skill-citations-tests` runs them alone). `nix fmt` formats with treefmt.
+`nix develop` enters the dev shell, which reconciles skillspkgs' `skill-collections` combination, pinned in the `skills-devshell/` sub-flake, into `.agents/skills/`, with `.claude/skills` a symlink to it, and puts `skill-citations` and `skill-citations-tests` on the path (`menu` lists them, and each takes `--help`). `nix flake check` runs the citation checks of `skills/` and of the fixture in `tests/skills/uix-fixture`, which cites pitch-io/uix at a hash-named release, and the tests in `tests/unit/` (`skill-citations-tests` runs them alone). `nix fmt` formats with treefmt.
 
 ## License
 
